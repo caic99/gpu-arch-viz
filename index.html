@@ -862,6 +862,8 @@
   .flow-step.exec    .flow-step-name { color: var(--nv-green); }
   .flow-step.regfile { border-color: rgba(255,159,74,0.55); background: rgba(255,159,74,0.06); }
   .flow-step.regfile .flow-step-name { color: var(--accent-orange); }
+  .flow-step.tmem    { border-color: rgba(255,107,157,0.55); background: rgba(255,107,157,0.06); }
+  .flow-step.tmem    .flow-step-name { color: var(--accent-pink); }
 
   .flow-arrow {
     display: flex;
@@ -1428,6 +1430,7 @@ const GPU_DATA = {
     tensorCoresPerSm: 4, tensorGen: "5th (FP4/FP6)",
     warpSchedulers: 4, ldstPerPart: 8,
     regFilePerSm: "256 KB", l1SmemPerSm: "256 KB", smemMaxPerBlock: "228 KB",
+    tmemPerSm: "256 KB", tmemPerPart: "64 KB",  // Tensor Memory (Blackwell 新增)
     l2: "100 MB (50 × 2)", gmem: "192 GB HBM3e",
     memType: "hbm", memCount: 8,
     bandwidth: "8 TB/s",  // HGX B100 datasheet 同 B200 (HBM3e 8 stack 全开)
@@ -1446,6 +1449,7 @@ const GPU_DATA = {
     tensorCoresPerSm: 4, tensorGen: "5th (FP4/FP6)",
     warpSchedulers: 4, ldstPerPart: 8,
     regFilePerSm: "256 KB", l1SmemPerSm: "256 KB", smemMaxPerBlock: "228 KB",
+    tmemPerSm: "256 KB", tmemPerPart: "64 KB",  // Tensor Memory (Blackwell 新增)
     l2: "100 MB (50 × 2)", gmem: "192 GB HBM3e",
     memType: "hbm", memCount: 8,
     bandwidth: "8 TB/s",
@@ -1832,7 +1836,18 @@ function renderDie(spec) {
       <div class="flow-step regfile">
         <div class="flow-step-name">REGISTER FILE · 64 KB · 16384 × 32-bit</div>
         <div class="flow-step-detail">本 partition 的 ${residentPerPart} warp × 32 thread 的所有寄存器都在此 · 每 thread ≤ 255 regs · ~1 cycle</div>
+      </div>${spec.tmemPerSm ? `
+
+      <div class="flow-arrow">
+        <span class="flow-arrow-num">⑤</span>
+        <span>Tensor Core 操作数另从 TMEM 取/写</span>
+        <span class="flow-arrow-symbol">⇅</span>
       </div>
+
+      <div class="flow-step tmem">
+        <div class="flow-step-name">TENSOR MEMORY (TMEM) · ${spec.tmemPerPart} / sub-part · ${spec.tmemPerSm} / SM</div>
+        <div class="flow-step-detail">Blackwell 新增的 on-chip operand 存储, 专供 Tensor Core (UTCMMA) · 访问指令: <code>LDTM</code> / <code>STTM</code> / <code>UTCCP</code> (SMEM→TMEM async copy) / <code>UTCSHIFT</code> · 独立于 Register File 和 SMEM</div>
+      </div>` : ''}
     </div>`;
 
   // Thumbnails for sub-partitions 1, 2, 3 — show pipeline structure (no pool, pool 在 SM 级)
